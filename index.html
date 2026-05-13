@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>介護食かんたんチェック診断</title>
+<style>
+  :root {
+    --bg: #fdfaf5;
+    --card: #ffffff;
+    --text: #3b3530;
+    --sub: #7a6e63;
+    --accent: #9f5f32;
+    --accent-soft: #f3e3d2;
+    --border: #ead9c6;
+    --shadow: 0 4px 16px rgba(0,0,0,0.05);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 20px 16px 60px;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 3px solid #d68a55;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  .wrap { max-width: 600px; margin: 0 auto; }
+  h1 {
+    font-size: 1.5rem;
+    text-align: center;
+    color: var(--accent);
+    margin: 8px 0 16px;
+  }
+  .lead {
+    font-size: 0.95rem;
+    color: var(--sub);
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .notice {
+    background: var(--accent-soft);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    color: #6b5a4a;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 18px 18px 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 20px;
+  }
+  .check {
+    display: flex;
+    align-items: flex-start;
+    min-height: 44px;
+    padding: 10px 4px;
+    border-bottom: 1px dashed var(--border);
+    cursor: pointer;
+    user-select: none;
+  }
+  .check:last-child { border-bottom: none; }
+  .check input {
+    width: 22px;
+    height: 22px;
+    margin-right: 12px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .check span { font-size: 0.98rem; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 999px;
+    font-size: 1.05rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:active { opacity: 0.85; }
+  .btn-reset {
+    background: transparent;
+    color: var(--sub);
+    border: 1px solid var(--border);
+    margin-top: 12px;
+  }
+  #result { display: none; }
+  .result-type {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .result-body { font-size: 0.95rem; }
+  .note-link {
+    display: block;
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--accent-soft);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .note-link small { color: var(--sub); display: block; margin-bottom: 4px; }
+  .note-link strong { color: var(--accent); }
+  footer {
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--sub);
+    margin-top: 30px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>介護食かんたんチェック診断</h1>
+  <p class="lead">気になる食事のサインを、やさしくチェック。<br>ご家族の「食べる」を見直すヒントに。</p>
+
+  <div class="notice">
+    ※この診断は医療判断ではありません。気になる症状がある場合は、医師・歯科医師・言語聴覚士・管理栄養士などにご相談ください。
+  </div>
+
+  <div class="card" id="form">
+    <div id="checklist"></div>
+    <button class="btn btn-primary" id="diagnoseBtn">診断する</button>
+  </div>
+
+  <div class="card" id="result">
+    <div class="result-type" id="resultType"></div>
+    <div class="result-body" id="resultBody"></div>
+    <a class="note-link" id="noteLink" href="#" target="_blank" rel="noopener">
+      <small>関連note記事</small>
+      <strong id="noteTitle"></strong>
+    </a>
+    <!-- 商品紹介リンクは将来ここに追加する -->
+    <!-- <a class="product-link" href="#">関連商品を見る</a> -->
+    <button class="btn btn-reset" id="resetBtn">もう一度チェックする</button>
+  </div>
+
+  <footer>食べることは、暮らしの真ん中。</footer>
+</div>
+
+<script>
+  const items = [
+    { text: "食事中にむせることがある", type: "A" },
+    { text: "水やお茶でむせやすい", type: "A" },
+    { text: "食べ物が口の中に残る", type: "A" },
+    { text: "パサつくものを嫌がる", type: "B" },
+    { text: "肉や魚を飲み込みにくそうにする", type: "B" },
+    { text: "固いものを残すことが増えた", type: "B" },
+    { text: "食事に時間がかかる", type: "C" },
+    { text: "食べる量が減ってきた", type: "C" },
+    { text: "体重が減ってきた", type: "C" },
+    { text: "薬が飲みにくそうに見える", type: "A" },
+    { text: "きざみ食にしても食べにくそう", type: "B" },
+    { text: "食後に声がガラガラすることがある", type: "A" },
+  ];
+
+  const results = {
+    A: {
+      title: "むせ・とろみ見直しタイプ",
+      body: "むせやすい様子が見られるため、食べ方や水分の形を見直すきっかけになるかもしれません。一口の量や、とろみの加減を少し工夫してみてもよいかもしれません。",
+      noteTitle: "刻むだけでは食べにくいことも｜小さくしたのにむせる理由",
+      noteUrl: "https://note.com/gohan_yasashii/n/ncfb287086506"
+    },
+    B: {
+      title: "やわらかさ・まとまり見直しタイプ",
+      body: "噛む力や、口の中でまとめる力が落ちてきている可能性があります。やわらかく、まとまりやすい食材を選んでみてもよいかもしれません。",
+      noteTitle: "軟菜食に向いている食材10選 完全版",
+      noteUrl: "https://note.com/gohan_yasashii/n/n64709220fa4b"
+    },
+    C: {
+      title: "食事量・栄養補助見直しタイプ",
+      body: "食べる量が減ってきているサインかもしれません。少量で栄養がとれる工夫や、食べやすい形を見直してみてもよいかもしれません。",
+      noteTitle: "体重が減ってきた親に何を食べさせる？",
+      noteUrl: "#"
+    },
+    D: {
+      title: "複合的に見直しタイプ",
+      body: "複数のサインが重なっているようです。まずは食事の様子を観察して、メモから始めてみてもよいかもしれません。",
+      noteTitle: "まずは食事の様子をメモするところから",
+      noteUrl: "#"
+    },
+    none: {
+      title: "現時点では大きな変化は少ないかもしれません",
+      body: "今のところ、目立つサインは少ないようです。これからも、食事の様子をやさしく見守ってあげてください。",
+      noteTitle: "まずは食事の様子をメモするところから",
+      noteUrl: "#"
+    }
+  };
+
+  const list = document.getElementById("checklist");
+  items.forEach((item, i) => {
+    const label = document.createElement("label");
+    label.className = "check";
+    label.innerHTML = `<input type="checkbox" data-type="${item.type}" data-i="${i}"><span>${item.text}</span>`;
+    list.appendChild(label);
+  });
+
+  document.getElementById("diagnoseBtn").addEventListener("click", () => {
+    const checks = document.querySelectorAll("#checklist input:checked");
+    const counts = { A: 0, B: 0, C: 0 };
+    checks.forEach(c => counts[c.dataset.type]++);
+    const total = checks.length;
+
+    let key;
+    if (total === 0) {
+      key = "none";
+    } else {
+      const hitCategories = Object.values(counts).filter(v => v >= 1).length;
+      if (hitCategories >= 2 && total >= 3) {
+        key = "D";
+      } else {
+        const max = Math.max(counts.A, counts.B, counts.C);
+        key = Object.keys(counts).find(k => counts[k] === max);
+      }
+    }
+
+    const r = results[key];
+    document.getElementById("resultType").textContent = r.title;
+    document.getElementById("resultBody").textContent = r.body;
+    document.getElementById("noteTitle").textContent = r.noteTitle;
+    document.getElementById("noteLink").href = r.noteUrl;
+
+    document.getElementById("form").style.display = "none";
+    const res = document.getElementById("result");
+    res.style.display = "block";
+    res.scrollIntoView({ behavior: "smooth" });
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    document.querySelectorAll("#checklist input").forEach(c => c.checked = false);
+    document.getElementById("result").style.display = "none";
+    document.getElementById("form").style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+</script>
+</body>
+</html>
