@@ -13,6 +13,8 @@
     --accent: #9f5f32;
     --accent-soft: #f3e3d2;
     --border: #ead9c6;
+    --warn: #c0683a;
+    --warn-bg: #fbe9da;
     --shadow: 0 4px 16px rgba(0,0,0,0.05);
   }
   * { box-sizing: border-box; }
@@ -60,6 +62,15 @@
     box-shadow: var(--shadow);
     margin-bottom: 20px;
   }
+  .group-title {
+    font-size: 0.85rem;
+    color: var(--sub);
+    margin: 16px 0 6px;
+    padding-left: 4px;
+    border-left: 3px solid var(--accent-soft);
+    padding-left: 10px;
+  }
+  .group-title:first-child { margin-top: 0; }
   .check {
     display: flex;
     align-items: flex-start;
@@ -90,10 +101,7 @@
     cursor: pointer;
     margin-top: 8px;
   }
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-  }
+  .btn-primary { background: var(--accent); color: #fff; }
   .btn-primary:active { opacity: 0.85; }
   .btn-reset {
     background: transparent;
@@ -103,15 +111,42 @@
   }
   #result { display: none; }
   .result-type {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     font-weight: bold;
     color: var(--accent);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
-  .result-body { font-size: 0.95rem; }
+  .result-type.urgent { color: var(--warn); }
+  .result-summary {
+    font-size: 0.95rem;
+    margin-bottom: 18px;
+  }
+  .section {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border);
+  }
+  .section h3 {
+    font-size: 0.95rem;
+    color: var(--accent);
+    margin: 0 0 8px;
+  }
+  .section.urgent-box {
+    background: var(--warn-bg);
+    border-radius: 12px;
+    padding: 12px 14px;
+    border-top: none;
+  }
+  .section.urgent-box h3 { color: var(--warn); }
+  .section ul {
+    margin: 0;
+    padding-left: 20px;
+    font-size: 0.93rem;
+  }
+  .section li { margin-bottom: 4px; }
   .note-link {
     display: block;
-    margin-top: 16px;
+    margin-top: 18px;
     padding: 14px;
     background: var(--accent-soft);
     border-radius: 12px;
@@ -144,13 +179,27 @@
 
   <div class="card" id="result">
     <div class="result-type" id="resultType"></div>
-    <div class="result-body" id="resultBody"></div>
+    <div class="result-summary" id="resultSummary"></div>
+
+    <div class="section" id="signSection">
+      <h3>見えているサイン</h3>
+      <ul id="signList"></ul>
+    </div>
+
+    <div class="section" id="doSection">
+      <h3>家庭でまずできること</h3>
+      <ul id="doList"></ul>
+    </div>
+
+    <div class="section" id="careSection">
+      <h3>注意したいこと</h3>
+      <ul id="careList"></ul>
+    </div>
+
     <a class="note-link" id="noteLink" href="#" target="_blank" rel="noopener">
       <small>関連note記事</small>
       <strong id="noteTitle"></strong>
     </a>
-    <!-- 商品紹介リンクは将来ここに追加する -->
-    <!-- <a class="product-link" href="#">関連商品を見る</a> -->
     <button class="btn btn-reset" id="resetBtn">もう一度チェックする</button>
   </div>
 
@@ -158,86 +207,302 @@
 </div>
 
 <script>
+  // category: cough / chew / swallow / appetite / environment / urgent
   const items = [
-    { text: "食事中にむせることがある", type: "A" },
-    { text: "水やお茶でむせやすい", type: "A" },
-    { text: "食べ物が口の中に残る", type: "A" },
-    { text: "パサつくものを嫌がる", type: "B" },
-    { text: "肉や魚を飲み込みにくそうにする", type: "B" },
-    { text: "固いものを残すことが増えた", type: "B" },
-    { text: "食事に時間がかかる", type: "C" },
-    { text: "食べる量が減ってきた", type: "C" },
-    { text: "体重が減ってきた", type: "C" },
-    { text: "薬が飲みにくそうに見える", type: "A" },
-    { text: "きざみ食にしても食べにくそう", type: "B" },
-    { text: "食後に声がガラガラすることがある", type: "A" },
+    // むせ込み
+    { text: "食事中にむせることがある", category: "cough" },
+    { text: "水やお茶でむせやすい", category: "cough" },
+    { text: "食後に声がガラガラすることがある", category: "cough" },
+    // 噛みにくさ
+    { text: "固いものを残すことが増えた", category: "chew" },
+    { text: "肉や魚を噛みにくそうにする", category: "chew" },
+    { text: "きざみ食にしても食べにくそう", category: "chew" },
+    // 飲み込みにくさ
+    { text: "食べ物が口の中に残る", category: "swallow" },
+    { text: "パサつくものを嫌がる", category: "swallow" },
+    { text: "薬が飲みにくそうに見える", category: "swallow" },
+    // 食欲低下
+    { text: "食べる量が減ってきた", category: "appetite" },
+    { text: "食事に時間がかかる", category: "appetite" },
+    { text: "体重が減ってきた", category: "appetite" },
+    // 介助・環境
+    { text: "食事中に姿勢が崩れやすい", category: "environment" },
+    { text: "声かけしないと食べ進まない", category: "environment" },
+    { text: "食事に集中できず、途中で止まる", category: "environment" },
+    // 専門職相談レベル（urgent）
+    { text: "発熱を繰り返している", category: "urgent" },
+    { text: "肺炎を起こしたことがある", category: "urgent" },
+    { text: "短期間で体重が大きく減った", category: "urgent" },
+    { text: "食事中に呼吸が苦しそうになる", category: "urgent" },
+  ];
+
+  // 表示順グループ
+  const groups = [
+    { label: "むせ込みについて", categories: ["cough"] },
+    { label: "噛むことについて", categories: ["chew"] },
+    { label: "飲み込みについて", categories: ["swallow"] },
+    { label: "食欲・量について", categories: ["appetite"] },
+    { label: "食事の環境・介助について", categories: ["environment"] },
+    { label: "気になる体調のサイン", categories: ["urgent"] },
   ];
 
   const results = {
-    A: {
-      title: "むせ・とろみ見直しタイプ",
-      body: "むせやすい様子が見られるため、食べ方や水分の形を見直すきっかけになるかもしれません。一口の量や、とろみの加減を少し工夫してみてもよいかもしれません。",
+    cough: {
+      title: "むせ込み・水分見直しタイプ",
+      summary: "食事中・水分摂取時にむせるサインが目立っています。誤嚥（食べ物が気管に入ること）につながる可能性があるため、食べ方や水分の形を見直すきっかけになります。",
+      signs: [
+        "食事中や水分でむせる",
+        "食後に声がガラガラする",
+        "飲み込みの後に咳が出る",
+      ],
+      dos: [
+        "水やお茶にとろみをつけて飲んでもらう",
+        "一口の量を小さじ1杯ほどに減らす",
+        "食事中はあごを軽く引いた姿勢を保つ",
+        "口の中が空になってから次の一口を運ぶ",
+      ],
+      cares: [
+        "むせが続く、熱が出る、痰が増える場合は早めに専門職へ相談してください",
+      ],
       noteTitle: "刻むだけでは食べにくいことも｜小さくしたのにむせる理由",
-      noteUrl: "https://note.com/gohan_yasashii/n/ncfb287086506"
+      noteUrl: "https://note.com/gohan_yasashii/n/ncfb287086506",
     },
-    B: {
-      title: "やわらかさ・まとまり見直しタイプ",
-      body: "噛む力や、口の中でまとめる力が落ちてきている可能性があります。やわらかく、まとまりやすい食材を選んでみてもよいかもしれません。",
+    chew: {
+      title: "噛みにくさ・まとまり見直しタイプ",
+      summary: "噛む力や歯の状態が食事に影響しているかもしれません。やわらかさやまとまりを工夫することが、食べやすさのきっかけになります。",
+      signs: [
+        "固いものや繊維の多いものを残す",
+        "肉や魚を噛むのに時間がかかる",
+        "きざみ食にしても食べにくそうにする",
+      ],
+      dos: [
+        "やわらかく煮込む、蒸す調理に切り替える",
+        "繊維の強い食材（ごぼう・たけのこなど）を控える",
+        "あんかけやとろみでまとまりをつける",
+        "義歯が合っているか家族で観察する",
+      ],
+      cares: [
+        "歯のぐらつき・痛み・義歯の不具合が気になる場合は歯科に相談してください",
+      ],
       noteTitle: "軟菜食に向いている食材10選 完全版",
-      noteUrl: "https://note.com/gohan_yasashii/n/n64709220fa4b"
+      noteUrl: "https://note.com/gohan_yasashii/n/n64709220fa4b",
     },
-    C: {
-      title: "食事量・栄養補助見直しタイプ",
-      body: "食べる量が減ってきているサインかもしれません。少量で栄養がとれる工夫や、食べやすい形を見直してみてもよいかもしれません。",
+    swallow: {
+      title: "飲み込みにくさタイプ",
+      summary: "口の中に食べ物が残る・パサつきを嫌がるなど、飲み込み（嚥下）の力が落ちてきている可能性があります。形態や水分の工夫が助けになります。",
+      signs: [
+        "食べ物が口の中に残る",
+        "パサつくものを嫌がる",
+        "薬が飲みにくそうに見える",
+      ],
+      dos: [
+        "パサつく食材は、あんやマヨネーズ・出汁でしっとりさせる",
+        "ゼリー・ムース状のおかずを取り入れる",
+        "薬は服薬ゼリーやとろみ水で飲んでもらう",
+        "食後30分は座った姿勢を保つ",
+      ],
+      cares: [
+        "飲み込みづらさが続く場合は、言語聴覚士や歯科医師に相談してください",
+      ],
+      noteTitle: "刻むだけでは食べにくいことも｜小さくしたのにむせる理由",
+      noteUrl: "https://note.com/gohan_yasashii/n/ncfb287086506",
+    },
+    appetite: {
+      title: "食事量・栄養見直しタイプ",
+      summary: "食事の量や時間、体重に変化が出てきているようです。少量で栄養がとれる工夫が、食べる楽しみを取り戻すきっかけになります。",
+      signs: [
+        "食べる量が減ってきた",
+        "食事に時間がかかる",
+        "体重が減ってきた",
+      ],
+      dos: [
+        "1食の量を減らし、3食＋間食の小分けにする",
+        "好きな味・香り（だし・味噌・果物）を取り入れる",
+        "卵・豆腐・チーズなど少量で栄養がとれる食材を加える",
+        "彩りや盛り付けで「食べたい」気持ちを引き出す",
+      ],
+      cares: [
+        "体重減少が続く場合は、管理栄養士やかかりつけ医に相談してください",
+      ],
       noteTitle: "体重が減ってきた親に何を食べさせる？",
-      noteUrl: "#"
+      noteUrl: "#",
     },
-    D: {
-      title: "複合的に見直しタイプ",
-      body: "複数のサインが重なっているようです。まずは食事の様子を観察して、メモから始めてみてもよいかもしれません。",
+    environment: {
+      title: "介助・環境見直しタイプ",
+      summary: "食べ物そのものより、姿勢・集中・声かけなど食事の「環境」を整えることで、食べやすさが変わる可能性があります。",
+      signs: [
+        "食事中に姿勢が崩れる",
+        "声かけしないと食べ進まない",
+        "途中で食事に集中できなくなる",
+      ],
+      dos: [
+        "椅子とテーブルの高さを合わせ、足を床につける",
+        "テレビを消し、静かな環境で食事をする",
+        "1品ずつ出して、食べる対象をはっきりさせる",
+        "「おいしいね」と一緒に食卓につく",
+      ],
+      cares: [
+        "認知機能の変化が気になる場合は、かかりつけ医に相談してください",
+      ],
       noteTitle: "まずは食事の様子をメモするところから",
-      noteUrl: "#"
+      noteUrl: "#",
     },
-    none: {
-      title: "現時点では大きな変化は少ないかもしれません",
-      body: "今のところ、目立つサインは少ないようです。これからも、食事の様子をやさしく見守ってあげてください。",
+    observe: {
+      title: "まずは観察タイプ",
+      summary: "今のところ目立つサインは少ないようです。これからも食事の様子をやさしく見守り、変化に気づくことが大切です。",
+      signs: [
+        "現時点では大きな困りごとは少ない",
+      ],
+      dos: [
+        "週に1回、食事の様子をメモに残す",
+        "体重を月1回はかる",
+        "むせ・残し・時間の変化を意識して観察する",
+      ],
+      cares: [
+        "ちいさな変化でも気になる場合は、早めに専門職へ相談してください",
+      ],
       noteTitle: "まずは食事の様子をメモするところから",
-      noteUrl: "#"
-    }
+      noteUrl: "#",
+    },
+    complex: {
+      title: "食事全体を見直すサインが重なっています",
+      summary: "複数のカテゴリにまたがってサインが見られます。一つの工夫だけでなく、食べ方・形・量・環境を合わせて見直すきっかけになります。",
+      signs: [
+        "むせ・噛みにくさ・飲み込みにくさ・食欲低下など、複数の困りごとが同時に出ている",
+      ],
+      dos: [
+        "まずは1週間、食事の様子をメモして全体像をつかむ",
+        "一口の量を小さくし、姿勢を整えるところから始める",
+        "やわらかく、まとまりやすい食事に切り替える",
+        "水分にはとろみをつけてむせを減らす",
+        "気になる項目から1つずつ、専門職に相談する",
+      ],
+      cares: [
+        "一度にすべて変えようとせず、優先度の高いところから取り組んでください",
+        "判断に迷う場合は、かかりつけ医・管理栄養士・言語聴覚士に相談してください",
+      ],
+      noteTitle: "まずは食事の様子をメモするところから",
+      noteUrl: "#",
+    },
+    urgent: {
+      title: "早めに専門職へ相談タイプ",
+      summary: "誤嚥性肺炎や栄養状態に関わるサインが見られます。家庭での工夫だけで様子を見ず、早めに専門職へ相談することをおすすめします。",
+      signs: [
+        "発熱を繰り返している",
+        "肺炎を起こしたことがある",
+        "短期間での体重減少がある",
+        "食事中に呼吸が苦しそうになる",
+      ],
+      dos: [
+        "かかりつけ医に最近の食事・体調の変化を伝える",
+        "言語聴覚士（ST）による嚥下評価を相談する",
+        "管理栄養士に食事内容の見直しを相談する",
+        "食事中の様子をメモ・動画で記録しておく",
+      ],
+      cares: [
+        "「むせ＋発熱」「食事中の呼吸困難」は受診の目安になります",
+        "自己判断で食形態を大きく変えず、専門職と相談しながら進めてください",
+      ],
+      noteTitle: "まずは食事の様子をメモするところから",
+      noteUrl: "#",
+    },
   };
 
+  // チェックリスト描画（グループ別）
   const list = document.getElementById("checklist");
-  items.forEach((item, i) => {
-    const label = document.createElement("label");
-    label.className = "check";
-    label.innerHTML = `<input type="checkbox" data-type="${item.type}" data-i="${i}"><span>${item.text}</span>`;
-    list.appendChild(label);
+  groups.forEach(g => {
+    const h = document.createElement("div");
+    h.className = "group-title";
+    h.textContent = g.label;
+    list.appendChild(h);
+    items
+      .map((item, i) => ({ item, i }))
+      .filter(({ item }) => g.categories.includes(item.category))
+      .forEach(({ item, i }) => {
+        const label = document.createElement("label");
+        label.className = "check";
+        label.innerHTML = `<input type="checkbox" data-category="${item.category}" data-i="${i}"><span></span>`;
+        label.querySelector("span").textContent = item.text;
+        list.appendChild(label);
+      });
   });
+
+  const PRIORITY = ["cough", "swallow", "appetite", "chew", "environment", "observe"];
+
+  function decide(counts, total, checkedTexts) {
+    if (counts.urgent >= 2 || (counts.urgent >= 1 && total >= 4)) return "urgent";
+    if (total <= 1) return "observe";
+
+    const scored = ["cough", "chew", "swallow", "appetite", "environment"];
+    const hitCategories = scored.filter(k => counts[k] >= 1).length;
+
+    // 複合タイプは「5個以上 かつ 4カテゴリ以上に分散」の場合だけ
+    if (total >= 5 && hitCategories >= 4) return "complex";
+
+    const max = Math.max(...scored.map(k => counts[k]));
+    if (max === 0) return "observe";
+
+    const tops = scored.filter(k => counts[k] === max);
+    for (const k of PRIORITY) {
+      if (tops.includes(k)) return k;
+    }
+    return tops[0];
+  }
 
   document.getElementById("diagnoseBtn").addEventListener("click", () => {
     const checks = document.querySelectorAll("#checklist input:checked");
-    const counts = { A: 0, B: 0, C: 0 };
-    checks.forEach(c => counts[c.dataset.type]++);
-    const total = checks.length;
+    const counts = { cough:0, chew:0, swallow:0, appetite:0, environment:0, urgent:0 };
+    const checkedTexts = [];
+    checks.forEach(c => {
+      counts[c.dataset.category]++;
+      checkedTexts.push(items[c.dataset.i].text);
+    });
 
-    let key;
-    if (total === 0) {
-      key = "none";
-    } else {
-      const hitCategories = Object.values(counts).filter(v => v >= 1).length;
-      if (hitCategories >= 2 && total >= 3) {
-        key = "D";
-      } else {
-        const max = Math.max(counts.A, counts.B, counts.C);
-        key = Object.keys(counts).find(k => counts[k] === max);
-      }
-    }
-
+    const key = decide(counts, checks.length, checkedTexts);
     const r = results[key];
-    document.getElementById("resultType").textContent = r.title;
-    document.getElementById("resultBody").textContent = r.body;
-    document.getElementById("noteTitle").textContent = r.noteTitle;
-    document.getElementById("noteLink").href = r.noteUrl;
+
+    const typeEl = document.getElementById("resultType");
+    typeEl.textContent = r.title;
+    typeEl.classList.toggle("urgent", key === "urgent");
+
+    document.getElementById("resultSummary").textContent = r.summary;
+
+    // 見えているサイン：実際にチェックした項目を優先表示。なければデフォルト。
+    const signList = document.getElementById("signList");
+    signList.innerHTML = "";
+    const signs = checkedTexts.length ? checkedTexts : r.signs;
+    signs.forEach(s => {
+      const li = document.createElement("li");
+      li.textContent = s;
+      signList.appendChild(li);
+    });
+
+    const doList = document.getElementById("doList");
+    doList.innerHTML = "";
+    r.dos.forEach(s => {
+      const li = document.createElement("li");
+      li.textContent = s;
+      doList.appendChild(li);
+    });
+
+    const careList = document.getElementById("careList");
+    careList.innerHTML = "";
+    r.cares.forEach(s => {
+      const li = document.createElement("li");
+      li.textContent = s;
+      careList.appendChild(li);
+    });
+    // urgent 強調表示
+    document.getElementById("careSection").classList.toggle("urgent-box", key === "urgent");
+
+    const noteLink = document.getElementById("noteLink");
+    if (r.noteUrl && r.noteUrl !== "#") {
+      document.getElementById("noteTitle").textContent = r.noteTitle;
+      noteLink.href = r.noteUrl;
+      noteLink.style.display = "block";
+    } else {
+      noteLink.style.display = "none";
+    }
 
     document.getElementById("form").style.display = "none";
     const res = document.getElementById("result");
